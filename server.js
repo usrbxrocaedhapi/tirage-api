@@ -11,6 +11,7 @@ const PORT = process.env.PORT || 10000;
 // Stock temporaire (OK pour test, remplacer par DB plus tard)
 const tokens = {};
 
+// Définition des gains et leurs probabilités
 const gains = [
   { id: "x1", prob: 0.01 },
   { id: "x2", prob: 0.19 },
@@ -19,7 +20,18 @@ const gains = [
   { id: "x5", prob: 80 }
 ];
 
+// Pages correspondantes aux gains
+const pages = {
+  x1: "/x1-a9k2",
+  x2: "/x2-zp81",
+  x3: "/x3-lk90",
+  x4: "/x4-qm21",
+  x5: "/x5-rt77"
+};
+
+// -------------------------
 // Endpoint pour générer un tirage
+// -------------------------
 app.post("/tirage", (req, res) => {
   const { userId } = req.body;
   if (!userId) return res.status(400).json({ error: "userId manquant" });
@@ -42,18 +54,12 @@ app.post("/tirage", (req, res) => {
   tokens[token] = { userId, gain: gainId, used: false, createdAt: Date.now() };
 
   // Renvoi du token + page correspondante
-  const pages = {
-    x1: "/x1-a9k2",
-    x2: "/x2-zp81",
-    x3: "/x3-lk90",
-    x4: "/x4-qm21",
-    x5: "/x5-rt77"
-  };
-
-  res.json({ token, page: pages[gainId] });
+  res.json({ token, page: pages[gainId], gainId });
 });
 
-// Endpoint pour vérifier le token
+// -------------------------
+// Endpoint pour vérifier le token côté page gagnante
+// -------------------------
 app.post("/verify-token", (req, res) => {
   const { token, gainId } = req.body;
   if (!tokens[token]) return res.status(400).json({ valid: false });
@@ -64,7 +70,9 @@ app.post("/verify-token", (req, res) => {
   res.json({ valid: true });
 });
 
-// Endpoint pour consommer le token
+// -------------------------
+// Endpoint pour consommer le token (ajout panier)
+// -------------------------
 app.post("/consume", (req, res) => {
   const { token } = req.body;
   if (!tokens[token] || tokens[token].used) return res.status(400).json({ error: "Token invalide ou déjà utilisé" });
@@ -73,4 +81,5 @@ app.post("/consume", (req, res) => {
   res.json({ success: true });
 });
 
+// -------------------------
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
