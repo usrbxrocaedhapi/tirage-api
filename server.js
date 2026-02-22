@@ -8,10 +8,17 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 10000;
 
-// Stock temporaire (OK pour test, remplacer par DB plus tard)
+// -------------------------
+// Stock temporaire
+// -------------------------
+// tokens[token] = { userId, gain, used, createdAt }
+// daily[userId] = timestamp du dernier tirage
 const tokens = {};
+const daily = {};
 
-// Définition des gains et leurs probabilités
+// -------------------------
+// Définition des gains et probabilités
+// -------------------------
 const gains = [
   { id: "x1", prob: 0.01 },
   { id: "x2", prob: 0.19 },
@@ -20,7 +27,7 @@ const gains = [
   { id: "x5", prob: 80 }
 ];
 
-// Pages correspondantes aux gains
+// Mapping gain → page
 const pages = {
   x1: "/x1-a9k2",
   x2: "/x2-zp81",
@@ -30,11 +37,18 @@ const pages = {
 };
 
 // -------------------------
-// Endpoint pour générer un tirage
+// Endpoint /tirage : générer tirage
 // -------------------------
 app.post("/tirage", (req, res) => {
   const { userId } = req.body;
   if (!userId) return res.status(400).json({ error: "userId manquant" });
+
+  // Limite 1 tirage/jour
+  const now = Date.now();
+  const lastTirage = daily[userId];
+  if (lastTirage && now - lastTirage < 24 * 60 * 60 * 1000) {
+    return res.status(400).json({ error: "Vous avez déjà tiré aujourd'hui" });
+  }
 
   // Calcul du gain
   const r = Math.random() * 100;
@@ -50,15 +64,16 @@ app.post("/tirage", (req, res) => {
 
   // Génération du token
   const token = crypto.randomBytes(16).toString("hex");
+  tokens[token] = { userId, gain: gainId, used: false, createdAt: now };
 
-  tokens[token] = { userId, gain: gainId, used: false, createdAt: Date.now() };
+  // Mettre à jour le dernier tirage du joueur
+  daily[userId] = now;
 
-  // Renvoi du token + page correspondante
   res.json({ token, page: pages[gainId], gainId });
 });
 
 // -------------------------
-// Endpoint pour vérifier le token côté page gagnante
+// Endpoint /verify-token : vérifier token côté page
 // -------------------------
 app.post("/verify-token", (req, res) => {
   const { token, gainId } = req.body;
@@ -71,11 +86,12 @@ app.post("/verify-token", (req, res) => {
 });
 
 // -------------------------
-// Endpoint pour consommer le token (ajout panier)
+// Endpoint /consume : consommer token
 // -------------------------
 app.post("/consume", (req, res) => {
   const { token } = req.body;
-  if (!tokens[token] || tokens[token].used) return res.status(400).json({ error: "Token invalide ou déjà utilisé" });
+  if (!tokens[token] || tokens[token].used)
+    return res.status(400).json({ error: "Token invalide ou déjà utilisé" });
 
   tokens[token].used = true;
   res.json({ success: true });
