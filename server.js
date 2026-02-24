@@ -1,4 +1,4 @@
-import dns from "dns";                  // <-- ajouté tout en haut
+import dns from "dns";                  // <-- conserver pour IPv4 first
 dns.setDefaultResultOrder("ipv4first");
 
 import express from "express";
@@ -6,11 +6,11 @@ import cors from "cors";
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import nodemailer from "nodemailer";
-import pkg from "pg";
+import sqlite3 from "sqlite3";
+import { open } from "sqlite";
 import dotenv from "dotenv";
 
 dotenv.config();
-const { Pool } = pkg;
 
 const app = express();
 app.use(cors({ origin: "https://maisonoclm.art" }));
@@ -18,13 +18,9 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 10000;
 
-// Connexion à la base
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL
-});
-
-const JWT_SECRET = process.env.JWT_SECRET;
-
+// -------------------------
+// Transporteur mail Gmail
+// -------------------------
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
@@ -34,7 +30,27 @@ const transporter = nodemailer.createTransport({
 });
 
 // -------------------------
-// Stock temporaire tirage (ton code existant)
+// SQLite setup
+// -------------------------
+let db;
+(async () => {
+  db = await open({
+    filename: './otk.db',
+    driver: sqlite3.Database
+  });
+
+  // Table pour stocker email + OTK + consommé
+  await db.run(`
+    CREATE TABLE IF NOT EXISTS otks (
+      email TEXT PRIMARY KEY,
+      otk TEXT,
+      used INTEGER DEFAULT 0
+    )
+  `);
+})();
+
+// -------------------------
+// Stock temporaire tirage existant
 // -------------------------
 const tokens = {};
 const daily = {};
@@ -50,7 +66,6 @@ const gains = [
   { id: "x5", prob: 80 }
 ];
 
-// Mapping gain → page
 const pages = {
   x1: "/x1-a9k2",
   x2: "/x2-zp81",
@@ -92,7 +107,7 @@ app.post("/tirage", (req, res) => {
 });
 
 // -------------------------
-// Endpoint /verify-token : vérifier token côté page
+// Endpoint /verify-token
 // -------------------------
 app.post("/verify-token", (req, res) => {
   const { token, gainId } = req.body;
@@ -105,7 +120,7 @@ app.post("/verify-token", (req, res) => {
 });
 
 // -------------------------
-// Endpoint /consume : consommer token
+// Endpoint /consume
 // -------------------------
 app.post("/consume", (req, res) => {
   const { token } = req.body;
@@ -117,12 +132,63 @@ app.post("/consume", (req, res) => {
 });
 
 // -------------------------
-// TEST BASE DE DONNÉES
+// Endpoint ajouter OTK automatique pour un email
 // -------------------------
-app.get("/test-db", async (req, res) => {
+app.post("/generate-otk", async (req, res) => {
   try {
-    const result = await pool.query("SELECT NOW()");
-    res.json({ success: true, time: result.rows[0] });
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: "Email manquant" });
+
+    const otk = crypto.randomBytes(8).toString("hex");
+
+    // Stocker ou remplacer si déjà existant
+    await db.run(`
+      INSERT INTO otks(email, otk, used) VALUES(?, ?, 0)
+      ON CONFLICT(email) DO UPDATE SET otk=excluded.otk, used=0
+    `, [email, otk]);
+
+    // Envoi du mail
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: "Votre One-Time Key pour la Box",
+      text: `Bonjour,\n\nVoici votre OTK : ${otk}\n\nMerci !`
+    });
+
+    res.json({ success: true, otk });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// -------------------------
+// Endpoint login box avec email + OTK
+// -------------------------
+app.post("/login-box", async (req, res) => {
+  try {
+    const { email, otk } = req.body;
+    if (!email || !otk) return res.status(400).json({ error: "Email ou OTK manquant" });
+
+    const row = await db.get("SELECT * FROM otks WHERE email=? AND otk=? AND used=0", [email, otk]);
+    if (!row) return res.status(400).json({ error: "Email ou OTK invalide" });
+
+    // Marquer comme utilisé
+    await db.run("UPDATE otks SET used=1 WHERE email=? AND otk=?", [email, otk]);
+
+    res.json({ success: true, message: "Accès à la box autorisé" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// -------------------------
+// Endpoint pour vider la table OTK (après fermeture de la box)
+app.post("/reset-otks", async (req, res) => {
+  try {
+    await db.run("DELETE FROM otks");
+    res.json({ success: true, message: "Table OTK vidée" });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, error: err.message });
