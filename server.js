@@ -1,18 +1,38 @@
 import express from "express";
 import cors from "cors";
 import crypto from "crypto";
+import jwt from "jsonwebtoken";
+import nodemailer from "nodemailer";
+import pkg from "pg";
+import dotenv from "dotenv";
+
+dotenv.config();
+const { Pool } = pkg;
 
 const app = express();
-app.use(cors());
+app.use(cors({ origin: "https://maisonoclm.art" })); // mets ton domaine ici
 app.use(express.json());
 
 const PORT = process.env.PORT || 10000;
 
+// Connexion à la base
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL
+});
+
+const JWT_SECRET = process.env.JWT_SECRET;
+
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
+  }
+});
+
 // -------------------------
-// Stock temporaire
+// Stock temporaire tirage (ton code existant)
 // -------------------------
-// tokens[token] = { userId, gain, used, createdAt }
-// daily[userId] = timestamp du dernier tirage
 const tokens = {};
 const daily = {};
 
@@ -43,14 +63,12 @@ app.post("/tirage", (req, res) => {
   const { userId } = req.body;
   if (!userId) return res.status(400).json({ error: "userId manquant" });
 
-  // Limite 1 tirage/jour
   const now = Date.now();
   const lastTirage = daily[userId];
   if (lastTirage && now - lastTirage < 24 * 60 * 60 * 1000) {
     return res.status(400).json({ error: "Vous avez déjà tiré aujourd'hui" });
   }
 
-  // Calcul du gain
   const r = Math.random() * 100;
   let cumul = 0;
   let gainId = gains[gains.length - 1].id;
@@ -62,11 +80,9 @@ app.post("/tirage", (req, res) => {
     }
   }
 
-  // Génération du token
   const token = crypto.randomBytes(16).toString("hex");
   tokens[token] = { userId, gain: gainId, used: false, createdAt: now };
 
-  // Mettre à jour le dernier tirage du joueur
   daily[userId] = now;
 
   res.json({ token, page: pages[gainId], gainId });
@@ -98,6 +114,8 @@ app.post("/consume", (req, res) => {
 });
 
 // -------------------------
+// TEST BASE DE DONNÉES
+// -------------------------
 app.get("/test-db", async (req, res) => {
   try {
     const result = await pool.query("SELECT NOW()");
@@ -107,5 +125,6 @@ app.get("/test-db", async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 });
+
 // -------------------------
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
