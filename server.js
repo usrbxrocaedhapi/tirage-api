@@ -1,3 +1,6 @@
+import dns from "dns";                  // <-- ajouté tout en haut
+dns.setDefaultResultOrder("ipv4first");
+
 import express from "express";
 import cors from "cors";
 import crypto from "crypto";
@@ -10,7 +13,7 @@ dotenv.config();
 const { Pool } = pkg;
 
 const app = express();
-app.use(cors({ origin: "https://maisonoclm.art" })); // mets ton domaine ici
+app.use(cors({ origin: "https://maisonoclm.art" }));
 app.use(express.json());
 
 const PORT = process.env.PORT || 10000;
