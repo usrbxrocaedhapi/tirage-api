@@ -1,4 +1,4 @@
-import dns from "dns";                  // <-- conserver pour IPv4 first
+import dns from "dns";                  // IPv4 first
 dns.setDefaultResultOrder("ipv4first");
 
 import express from "express";
@@ -35,7 +35,7 @@ const transporter = nodemailer.createTransport({
 let db;
 (async () => {
   db = await open({
-    filename: './otk.db',   // fichier SQLite local
+    filename: './otk.db',
     driver: sqlite3.Database
   });
 
@@ -75,7 +75,7 @@ const pages = {
 };
 
 // -------------------------
-// Endpoint /tirage : générer tirage
+// Endpoint /tirage
 // -------------------------
 app.post("/tirage", (req, res) => {
   const { userId } = req.body;
@@ -132,7 +132,7 @@ app.post("/consume", (req, res) => {
 });
 
 // -------------------------
-// Endpoint ajouter OTK automatique pour un email
+// Endpoint générer OTK pour un email
 // -------------------------
 app.post("/generate-otk", async (req, res) => {
   try {
@@ -163,7 +163,7 @@ app.post("/generate-otk", async (req, res) => {
 });
 
 // -------------------------
-// Endpoint login box avec email + OTK
+// Endpoint login box
 // -------------------------
 app.post("/login-box", async (req, res) => {
   try {
@@ -173,7 +173,6 @@ app.post("/login-box", async (req, res) => {
     const row = await db.get("SELECT * FROM otks WHERE email=? AND otk=? AND used=0", [email, otk]);
     if (!row) return res.status(400).json({ error: "Email ou OTK invalide" });
 
-    // Marquer comme utilisé
     await db.run("UPDATE otks SET used=1 WHERE email=? AND otk=?", [email, otk]);
 
     res.json({ success: true, message: "Accès à la box autorisé" });
@@ -184,7 +183,7 @@ app.post("/login-box", async (req, res) => {
 });
 
 // -------------------------
-// Endpoint pour vider la table OTK (après fermeture de la box)
+// Vider la table OTK après fermeture de la box
 app.post("/reset-otks", async (req, res) => {
   try {
     await db.run("DELETE FROM otks");
