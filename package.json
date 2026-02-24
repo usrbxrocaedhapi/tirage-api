@@ -12,6 +12,7 @@
     "jsonwebtoken": "^9.0.2",
     "nodemailer": "^6.9.8",
     "sqlite3": "^5.1.6",
+    "sqlite": "^4.1.0",
     "dotenv": "^16.4.1"
   }
 }
