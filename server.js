@@ -35,7 +35,7 @@ const transporter = nodemailer.createTransport({
 let db;
 (async () => {
   db = await open({
-    filename: './otk.db',
+    filename: './otk.db',   // fichier SQLite local
     driver: sqlite3.Database
   });
 
