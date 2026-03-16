@@ -179,6 +179,14 @@ app.post("/generate-otk", async (req, res) => {
 });
 
 // -------------------------
+// Endpoint debug : lister toutes les OTK
+// -------------------------
+app.get("/debug-otks", async (req, res) => {
+  const rows = await db.all("SELECT * FROM otks");
+  res.json(rows);
+});
+
+// -------------------------
 // Endpoint login box
 // -------------------------
 app.post("/login-box", async (req, res) => {
