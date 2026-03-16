@@ -134,11 +134,15 @@ app.post("/consume", (req, res) => {
 // -------------------------
 // Endpoint générer OTK pour un email
 // -------------------------
+// -------------------------
+// Endpoint générer OTK pour un email (version dégradée)
+// -------------------------
 app.post("/generate-otk", async (req, res) => {
   try {
     const { email } = req.body;
     if (!email) return res.status(400).json({ error: "Email manquant" });
 
+    // Génération d'une OTK aléatoire
     const otk = crypto.randomBytes(8).toString("hex");
 
     // Stocker ou remplacer si déjà existant
@@ -147,15 +151,27 @@ app.post("/generate-otk", async (req, res) => {
       ON CONFLICT(email) DO UPDATE SET otk=excluded.otk, used=0
     `, [email, otk]);
 
-    // Envoi du mail
+    // -------------------------
+    // ENVOI DU MAIL SUSPENDU
+    // -------------------------
+    /*
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: email,
       subject: "Votre One-Time Key pour la Box",
       text: `Bonjour,\n\nVoici votre OTK : ${otk}\n\nMerci !`
     });
+    */
 
-    res.json({ success: true, otk });
+    // Au lieu de l'envoyer par mail, on renvoie l'email et l'OTK directement
+    console.log(`OTK générée pour ${email} : ${otk}`); // utile pour debug / logs Render
+
+    res.json({
+      success: true,
+      email, // on renvoie l'email pour info
+      otk    // l'OTK générée, que tu peux envoyer toi-même au client
+    });
+
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, error: err.message });
