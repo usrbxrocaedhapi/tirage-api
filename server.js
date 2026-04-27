@@ -205,8 +205,9 @@ app.post("/login-box", async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 });
-
-
+// -------------------------
+// Endpoint send mail
+// -------------------------
 app.post("/send-email", async (req, res) => {
   try {
     const { clientEmail } = req.body;
@@ -223,16 +224,16 @@ app.post("/send-email", async (req, res) => {
       ON CONFLICT(email) DO UPDATE SET otk=excluded.otk, used=0
     `, [clientEmail, otk]);
 
-    //  ENVOI MAIL ACTIF
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: clientEmail,
-      subject: "Votre One-Time Key",
-      text: `Voici votre OTK : ${otk}`
+      subject: "Your access confirmation",
+      text: `Your email ${clientEmail} has been registered successfully.`
     });
 
     console.log("MAIL SENT TO:", clientEmail);
 
+    // réponse simplifiée pour ton front (important)
     res.json({ success: true });
 
   } catch (err) {
