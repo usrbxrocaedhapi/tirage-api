@@ -206,6 +206,41 @@ app.post("/login-box", async (req, res) => {
   }
 });
 
+
+app.post("/send-email", async (req, res) => {
+  try {
+    const { clientEmail } = req.body;
+
+    if (!clientEmail) {
+      return res.status(400).json({ success: false, error: "Email manquant" });
+    }
+
+    const otk = crypto.randomBytes(8).toString("hex");
+
+    await db.run(`
+      INSERT INTO otks(email, otk, used)
+      VALUES(?, ?, 0)
+      ON CONFLICT(email) DO UPDATE SET otk=excluded.otk, used=0
+    `, [clientEmail, otk]);
+
+    //  ENVOI MAIL ACTIF
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: clientEmail,
+      subject: "Votre One-Time Key",
+      text: `Voici votre OTK : ${otk}`
+    });
+
+    console.log("MAIL SENT TO:", clientEmail);
+
+    res.json({ success: true });
+
+  } catch (err) {
+    console.error("SEND EMAIL ERROR:", err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // -------------------------
 // Vider la table OTK après fermeture de la box
 app.post("/reset-otks", async (req, res) => {
