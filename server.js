@@ -48,12 +48,12 @@ const pages = {
 // -------------------------
 app.post("/tirage", (req, res) => {
   const { userId } = req.body;
-  if (!userId) return res.status(400).json({ error: "userId manquant" });
+  if (!userId) return res.status(400).json({ error: "userId is missing" });
 
   const now = Date.now();
   const lastTirage = daily[userId];
   if (lastTirage && now - lastTirage < 24 * 60 * 60 * 1000) {
-    return res.status(400).json({ error: "Vous avez déjà tiré aujourd'hui" });
+    return res.status(400).json({ error: "Please come back tomorrow." });
   }
 
   const r = Math.random() * 100;
@@ -94,7 +94,7 @@ app.post("/verify-token", (req, res) => {
 app.post("/consume", (req, res) => {
   const { token } = req.body;
   if (!tokens[token] || tokens[token].used)
-    return res.status(400).json({ error: "Token invalide ou déjà utilisé" });
+    return res.status(400).json({ error: "Token invalid" });
 
   tokens[token].used = true;
   res.json({ success: true });
