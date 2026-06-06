@@ -29,10 +29,10 @@ const daily = {};
 // -------------------------
 const gains = [
   { id: "x1", prob: 0.01 },
-  { id: "x2", prob: 20 },
+  { id: "x2", prob: 19 },
   { id: "x3", prob: 25 },
-  { id: "x4", prob: 27 },
-  { id: "x5", prob: 27.99 }
+  { id: "x4", prob: 27.99 },
+  { id: "x5", prob: 28 }
 ];
 
 const pages = {
