@@ -53,7 +53,7 @@ app.post("/tirage", (req, res) => {
   const now = Date.now();
   const lastTirage = daily[userId];
   if (lastTirage && now - lastTirage < 24 * 60 * 60 * 1000) {
-    return res.status(400).json({ error: "Please come back tomorrow." });
+    return res.status(400).json({ error: "Please come back later." });
   }
 
   const r = Math.random() * 100;
